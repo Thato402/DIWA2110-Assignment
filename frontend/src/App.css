@@ -1,0 +1,301 @@
+.App {
+  text-align: center;
+}
+
+.App-logo {
+  height: 40vmin;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .App-logo {
+    animation: App-logo-spin infinite 20s linear;
+  }
+}
+
+.App-header {
+  background-color: #282c34;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(10px + 2vmin);
+  color: white;
+}
+
+.App-link {
+  color: #61dafb;
+}
+
+@keyframes App-logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+body {
+  font-family: Arial, sans-serif;
+  background-color: #e0d9a9;
+  color: #000000;
+  margin: 0;
+  padding: 0;
+  text-align: center;
+}
+
+nav {
+  background-color: #000000;
+  padding: 10px;
+  color: #FFFFFF;
+}
+
+nav a {
+  color: #FFFFFF;
+  text-decoration: none;
+  margin: 0 10px;
+}
+
+nav a:hover {
+  text-decoration: underline;
+}
+
+.card-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 20px;
+  padding: 20px;
+}
+
+.card {
+  border: 1px solid #000000;
+  padding: 10px;
+  background-color: #e0d284;
+  text-align: center;
+  position: relative;
+  border-radius: 20px;
+}
+
+.card img {
+  max-width: 100%;
+  height: auto;
+  border: 1px solid #000000;
+  border-radius: 20px;
+}
+
+.card-edit {
+  display: none;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: #FFFFFF;
+  padding: 10px;
+  border: 1px solid #000000;
+}
+
+.card:not(.has-image) .card-edit {
+  display: block;
+}
+
+.card:hover:not(.has-image) .card-edit {
+  display: block;
+}
+
+.card-edit input[type="file"] {
+  margin-top: 10px;
+}
+
+.product-list {
+  margin: 20px 0;
+  padding: 10px;
+  border: 1px solid #000000;
+  background-color: #e0d284;
+  display: table; /* Treat as table for styling */
+  width: 100%;
+}
+
+.product-list-item {
+  display: table-row; /* Treat as table row */
+  border-bottom: 1px solid #000000;
+  padding: 12px; /* Increased padding for readability */
+  font-size: 14px; /* Increased for readability */
+}
+
+.product-list-item:nth-child(even) {
+  background-color: #e0d284; /* Alternating row color */
+}
+
+.product-list-item > * {
+  display: table-cell; /* Treat children as table cells */
+  padding: 8px; /* Padding for cells */
+  vertical-align: middle; /* Better alignment */
+}
+
+.product-list-item input[type="checkbox"] {
+  margin-right: 10px;
+}
+
+.product-list-item input[type="number"] {
+  margin-left: 10px;
+  width: 60px;
+}
+
+.product-list-item button {
+  margin-left: 10px;
+  padding: 5px;
+  background-color: #000000;
+  color: #FFFFFF;
+  border: 1px solid #000000;
+  cursor: pointer;
+}
+
+.product-list-item button:hover {
+  background-color: #333333;
+}
+
+.receipt {
+  margin: 20px 0;
+  padding: 10px;
+  border: 1px solid #000000;
+  background-color: #e0d284;
+}
+
+.receipt-item {
+  margin: 5px 0;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 20px 0;
+  background-color: #e0d284;
+  font-size: 14px;
+}
+
+th, td {
+  border: 1px solid #000000;
+  padding: 12px;
+  text-align: left;
+  background-color: #e0d284;
+}
+
+th {
+  background-color: #e0d284;
+  color: #000000;
+  font-weight: bold;
+  text-align: center;
+}
+
+td {
+  vertical-align: middle;
+}
+
+/* Specific styling for the products table in Reporting */
+.products-table tr:nth-child(even) {
+  background-color: #F5F5F5;
+}
+
+.products-table th {
+  padding: 15px;
+}
+
+.products-table td {
+  text-align: center;
+}
+
+/* Responsive design for product list in Sales */
+@media (max-width: 600px) {
+  .product-list {
+    display: block;
+    overflow-x: auto;
+  }
+
+  .product-list-item {
+    display: block;
+    margin-bottom: 10px;
+    border: 1px solid #000000;
+  }
+
+  .product-list-item > * {
+    display: flex;
+    justify-content: space-between;
+    padding: 5px;
+    text-align: right;
+  }
+
+  .product-list-item > *:before {
+    content: attr(data-label);
+    font-weight: bold;
+    margin-right: 10px;
+    text-align: left;
+    white-space: nowrap;
+  }
+
+  .product-list-item input[type="checkbox"]:before {
+    content: "Select";
+  }
+
+  .product-list-item span:before {
+    content: "Product";
+  }
+
+  .product-list-item input[type="number"]:before {
+    content: "Quantity";
+  }
+
+  .product-list-item button:before {
+    content: "Action";
+  }
+}
+
+/* Ensure content takes full height without overlapping */
+.content {
+  min-height: auto;
+  padding-bottom: 20px;
+}
+
+/* Footer styling */
+footer {
+  width: 100%;
+  background-color: #000000;
+  color: #FFFFFF;
+  text-align: center;
+  padding: 10px 0;
+  font-size: 12px;
+  margin-top: 20px;
+}
+
+button {
+  background-color: #000000;
+  color: #FFFFFF;
+  cursor: pointer;
+  margin-right: 10px;
+  padding: 5px;
+  border: 1px solid #000000;
+}
+
+button:hover {
+  background-color: #333333;
+}
+
+.low-stock {
+  background-color: #CCCCCC;
+}
+
+form {
+  margin-bottom: 20px;
+  padding: 10px;
+  background-color: #e0d284;
+  border: 1px solid #000000;
+}
+
+input, select {
+  margin-right: 10px;
+  padding: 5px;
+  background-color: #FFFFFF;
+  color: #000000;
+  border: 1px solid #000000;
+}
