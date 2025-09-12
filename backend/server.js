@@ -1,164 +1,319 @@
-const express = require('express');
-const cors = require('cors');
+const express = require("express");
+const cors = require("cors");
+const fs = require("node:fs").promises;
+const path = require("node:path");
 
-console.time('Server startup');
+console.time("Server startup");
 
 const app = express();
-app.use(cors({ origin: 'https://Thato402.github.io/DIWA2110-Assignment', credentials: true })); // Restrict to frontend origin
-app.use(express.json({ limit: '10mb' })); // Increased limit for base64 images
 
-// In-memory storage for debugging
-let products = [];
-let sales = [];
+// ---- Constants ----
+const DATA_FILE = path.join(__dirname, "data.json");
+const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:3000"; // Default to local dev
 
-const getData = (file) => {
-  console.log(`Accessing in-memory data for ${file}`);
-  return file === 'products' ? products : sales;
-};
+// ---- Middleware ----
+app.use(cors({ origin: FRONTEND_URL, credentials: true }));
+app.use(express.json({ limit: "10mb" }));
 
-const saveData = (file, data) => {
-  console.log(`Saving in-memory data for ${file}`);
-  if (file === 'products') products = data;
-  else sales = data;
-  return true;
-};
+// ---- Data Storage Functions ----
+async function loadData() {
+  try {
+    const data = await fs.readFile(DATA_FILE, 'utf8');
+    return JSON.parse(data);
+  } catch (error) {
+    // If file doesn't exist, return default structure
+    if (error.code === 'ENOENT') {
+      return { products: [], sales: [] };
+    }
+    throw error; // Re-throw other errors
+  }
+}
 
-// Root route to handle GET requests to "/"
-app.get('/', (req, res) => {
-  console.log('Root route hit');
-  res.json({ message: 'DIWA2110 Backend API is running', version: '1.0.0' });
+async function saveData(data) {
+  try {
+    await fs.writeFile(DATA_FILE, JSON.stringify(data, null, 2));
+    return true;
+  } catch (error) {
+    console.error("Error saving data:", error);
+    throw new Error("Failed to save data");
+  }
+}
+
+// ---- Routes ----
+
+// Root / Health
+app.get("/", (req, res) => {
+  res.json({ message: "DIWA2110 Backend API is running", version: "1.0.1" });
 });
 
-// Health check endpoint for monitoring
-app.get('/health', (req, res) => {
-  console.log('Health route hit');
-  res.status(200).json({ status: 'OK', timestamp: new Date().toISOString() });
+app.get("/health", (req, res) => {
+  res.status(200).json({ status: "OK", timestamp: new Date().toISOString() });
 });
 
-// Products CRUD with image
-app.get('/products', (req, res) => {
-  const products = getData('products');
-  res.json(products);
+// Products CRUD
+app.get("/products", async (req, res) => {
+  try {
+    const data = await loadData();
+    res.json(data.products);
+  } catch (error) {
+    console.error("Error loading products:", error);
+    res.status(500).json({ error: "Failed to load products" });
+  }
 });
 
-app.post('/products', (req, res) => {
-  const products = getData('products');
-  const newProduct = { id: Date.now(), quantity: parseInt(req.body.quantity) || 0, ...req.body };
-  products.push(newProduct);
-  if (saveData('products', products)) {
+app.post("/products", async (req, res) => {
+  try {
+    const { name, price, quantity, description, category, image } = req.body;
+    
+    if (!name || typeof price !== "number" || price < 0) {
+      return res.status(400).json({ 
+        error: "Name is required and price must be a non-negative number" 
+      });
+    }
+
+    const data = await loadData();
+    const newProduct = {
+      id: Date.now(),
+      name,
+      price,
+      quantity: parseInt(quantity) || 0,
+      description: description || "",
+      category: category || "",
+      ...(image && { image }),
+      createdAt: new Date().toISOString()
+    };
+
+    data.products.push(newProduct);
+    await saveData(data);
+    
     res.status(201).json(newProduct);
-  } else {
-    res.status(500).json({ error: 'Failed to save product' });
+  } catch (error) {
+    console.error("Error creating product:", error);
+    res.status(500).json({ error: "Failed to create product" });
   }
 });
 
-app.put('/products/:id', (req, res) => {
-  const products = getData('products');
-  const index = products.findIndex(p => p.id === parseInt(req.params.id));
-  if (index !== -1) {
-    products[index] = { ...products[index], ...req.body, quantity: parseInt(req.body.quantity) || products[index].quantity };
-    if (req.body.image) products[index].image = req.body.image;
-    if (saveData('products', products)) {
-      res.json(products[index]);
-    } else {
-      res.status(500).json({ error: 'Failed to save product' });
+app.put("/products/:id", async (req, res) => {
+  try {
+    const productId = parseInt(req.params.id);
+    const data = await loadData();
+    const productIndex = data.products.findIndex(p => p.id === productId);
+    
+    if (productIndex === -1) {
+      return res.status(404).json({ error: "Product not found" });
     }
-  } else {
-    res.status(404).json({ error: 'Product not found' });
+
+    const { name, price, quantity, description, category, image } = req.body;
+    const updatedProduct = {
+      ...data.products[productIndex],
+      ...(name && { name }),
+      ...(typeof price === "number" && price >= 0 && { price }),
+      ...(typeof quantity === "number" && quantity >= 0 && { quantity: parseInt(quantity) }),
+      ...(description !== undefined && { description }),
+      ...(category !== undefined && { category }),
+      ...(image !== undefined && { image }),
+      updatedAt: new Date().toISOString()
+    };
+
+    data.products[productIndex] = updatedProduct;
+    await saveData(data);
+    
+    res.json(updatedProduct);
+  } catch (error) {
+    console.error("Error updating product:", error);
+    res.status(500).json({ error: "Failed to update product" });
   }
 });
 
-app.delete('/products/:id', (req, res) => {
-  const products = getData('products');
-  const newProducts = products.filter(p => p.id !== parseInt(req.params.id));
-  if (saveData('products', newProducts)) {
-    res.json({ message: 'Product deleted' });
-  } else {
-    res.status(500).json({ error: 'Failed to save product' });
-  }
-});
-
-// Stock Management
-app.post('/stock/add', (req, res) => {
-  const { productId, quantity } = req.body;
-  const products = getData('products');
-  const index = products.findIndex(p => p.id === productId);
-  if (index !== -1) {
-    products[index].quantity += parseInt(quantity) || 0;
-    if (saveData('products', products)) {
-      res.json({ message: 'Stock added' });
-    } else {
-      res.status(500).json({ error: 'Failed to save stock' });
+app.delete("/products/:id", async (req, res) => {
+  try {
+    const productId = parseInt(req.params.id);
+    const data = await loadData();
+    const initialLength = data.products.length;
+    
+    data.products = data.products.filter(p => p.id !== productId);
+    
+    if (data.products.length === initialLength) {
+      return res.status(404).json({ error: "Product not found" });
     }
-  } else {
-    res.status(404).json({ error: 'Product not found' });
+
+    await saveData(data);
+    res.json({ message: "Product deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting product:", error);
+    res.status(500).json({ error: "Failed to delete product" });
   }
 });
 
-// Sales with multiple products
-app.get('/sales', (req, res) => res.json(getData('sales')));
+// Stock management
+app.post("/stock/add", async (req, res) => {
+  try {
+    const { productId, quantity } = req.body;
+    
+    if (!productId || parseInt(quantity) <= 0) {
+      return res.status(400).json({ 
+        error: "Valid productId and positive quantity required" 
+      });
+    }
 
-app.post('/sales', (req, res) => {
-  const salesItems = Array.isArray(req.body) ? req.body : [req.body];
-  const products = getData('products');
-  let insufficientStock = false;
+    const data = await loadData();
+    const productIndex = data.products.findIndex(p => p.id === parseInt(productId));
+    
+    if (productIndex === -1) {
+      return res.status(404).json({ error: "Product not found" });
+    }
 
-  salesItems.forEach(item => {
-    const { productId, quantity } = item;
-    const index = products.findIndex(p => p.id === parseInt(productId));
-    if (index === -1) return res.status(404).json({ error: 'Product not found' });
-    const qty = parseInt(quantity) || 1;
-    if (products[index].quantity < qty) insufficientStock = true;
-  });
-
-  if (insufficientStock) return res.status(400).json({ error: 'Insufficient stock' });
-
-  salesItems.forEach(item => {
-    const { productId, quantity } = item;
-    const index = products.findIndex(p => p.id === parseInt(item.productId));
-    const qty = parseInt(quantity) || 1;
-    products[index].quantity -= qty;
-  });
-
-  if (!saveData('products', products)) {
-    return res.status(500).json({ error: 'Failed to save product stock' });
+    const addQty = parseInt(quantity) || 0;
+    data.products[productIndex].quantity += addQty;
+    data.products[productIndex].updatedAt = new Date().toISOString();
+    
+    await saveData(data);
+    res.json({ 
+      message: "Stock updated successfully",
+      newQuantity: data.products[productIndex].quantity
+    });
+  } catch (error) {
+    console.error("Error adding stock:", error);
+    res.status(500).json({ error: "Failed to add stock" });
   }
+});
 
-  const sales = getData('sales');
-  const newSale = {
-    id: Date.now(),
-    items: salesItems,
-    date: new Date().toISOString(),
-    total: salesItems.reduce((sum, item) => {
-      const product = products.find(p => p.id === parseInt(item.productId));
-      const qty = parseInt(item.quantity) || 1;
-      return sum + (product?.price * qty || 0);
-    }, 0)
-  };
-  sales.push(newSale);
-  if (saveData('sales', sales)) {
+// Sales
+app.get("/sales", async (req, res) => {
+  try {
+    const data = await loadData();
+    res.json(data.sales);
+  } catch (error) {
+    console.error("Error loading sales:", error);
+    res.status(500).json({ error: "Failed to load sales" });
+  }
+});
+
+app.post("/sales", async (req, res) => {
+  try {
+    const salesItems = Array.isArray(req.body) ? req.body : [req.body];
+    
+    if (!salesItems.length) {
+      return res.status(400).json({ error: "At least one sale item required" });
+    }
+
+    const data = await loadData();
+    const insufficientStockItems = [];
+
+    // First, validate all items
+    for (let item of salesItems) {
+      const { productId, quantity } = item;
+      const product = data.products.find(p => p.id === parseInt(productId));
+      
+      if (!product) {
+        return res.status(404).json({ error: `Product ${productId} not found` });
+      }
+
+      const qty = parseInt(quantity) || 1;
+      if (product.quantity < qty) {
+        insufficientStockItems.push({ productId, available: product.quantity, requested: qty });
+      }
+    }
+
+    if (insufficientStockItems.length > 0) {
+      return res.status(400).json({ 
+        error: "Insufficient stock", 
+        details: insufficientStockItems 
+      });
+    }
+
+    // Process the sale
+    let total = 0;
+    const soldItems = [];
+
+    for (let item of salesItems) {
+      const { productId, quantity } = item;
+      const productIndex = data.products.findIndex(p => p.id === parseInt(productId));
+      const qty = parseInt(quantity) || 1;
+      
+      data.products[productIndex].quantity -= qty;
+      data.products[productIndex].updatedAt = new Date().toISOString();
+
+      const product = data.products[productIndex];
+      const itemTotal = product.price * qty;
+      total += itemTotal;
+
+      soldItems.push({
+        productId: product.id,
+        name: product.name,
+        quantity: qty,
+        price: product.price,
+        total: itemTotal
+      });
+    }
+
+    const newSale = {
+      id: Date.now(),
+      items: soldItems,
+      total,
+      date: new Date().toISOString(),
+    };
+
+    data.sales.push(newSale);
+    await saveData(data);
+    
     res.status(201).json(newSale);
-  } else {
-    res.status(500).json({ error: 'Failed to save sale' });
+  } catch (error) {
+    console.error("Error processing sale:", error);
+    res.status(500).json({ error: "Failed to process sale" });
   }
 });
 
 // Reports
-app.get('/reports/lowstock', (req, res) => {
-  const threshold = parseInt(req.query.threshold) || 10;
-  const products = getData('products');
-  res.json(products.filter(p => p.quantity < threshold));
+app.get("/reports/lowstock", async (req, res) => {
+  try {
+    const threshold = parseInt(req.query.threshold) || 10;
+    const data = await loadData();
+    const lowStockProducts = data.products.filter(p => p.quantity < threshold);
+    res.json(lowStockProducts);
+  } catch (error) {
+    console.error("Error generating low stock report:", error);
+    res.status(500).json({ error: "Failed to generate report" });
+  }
 });
 
-// Global error handler
+// ---- Error Handler ----
 app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ error: 'Internal server error' });
+  console.error("Global error:", err.stack);
+  res.status(500).json({ error: "Internal server error" });
 });
 
-// Dynamic port for Render
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.timeEnd('Server startup');
-  console.log(`Backend server running on port ${PORT}`);
+// 404 Handler for undefined API routes
+app.use((req, res) => {
+  res.status(404).json({ error: "API endpoint not found" });
 });
+
+// ---- Start Server ----
+const PORT = process.env.PORT || 5000;
+
+async function startServer() {
+  try {
+    // Ensure data file exists
+    try {
+      await fs.access(DATA_FILE);
+    } catch (error) {
+      if (error.code === 'ENOENT') {
+        // Create initial data file
+        await saveData({ products: [], sales: [] });
+        console.log("Created new data file");
+      }
+    }
+
+    app.listen(PORT, () => {
+      console.timeEnd("Server startup");
+      console.log(`🚀 Backend running on http://localhost:${PORT}`);
+      console.log(`📊 Frontend URL: ${FRONTEND_URL}`);
+      console.log(`💾 Data file: ${DATA_FILE}`);
+    });
+  } catch (error) {
+    console.error("Failed to start server:", error);
+    process.exit(1);
+  }
+}
+
+startServer();
