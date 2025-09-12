@@ -4,7 +4,7 @@ const fs = require('fs');
 const path = require('path');
 
 const app = express();
-app.use(cors()); // Allow all origins; update to specific origin (e.g., 'https://Thato402.github.io') in production
+app.use(cors({ origin: 'https://Thato402.github.io/DIWA2110-Assignment' })); // Restrict to frontend origin
 app.use(express.json({ limit: '10mb' })); // Increased limit for base64 images
 
 const DATA_DIR = path.join(__dirname, 'data');
@@ -44,6 +44,16 @@ const saveData = (file, data) => {
     throw err;
   }
 };
+
+// Root route to handle GET requests to "/"
+app.get('/', (req, res) => {
+  res.json({ message: 'DIWA2110 Backend API is running', version: '1.0.0' });
+});
+
+// Health check endpoint for monitoring
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'OK', timestamp: new Date().toISOString() });
+});
 
 // Products CRUD with image
 app.get('/products', (req, res) => {
@@ -140,6 +150,12 @@ app.get('/reports/lowstock', (req, res) => {
   const threshold = parseInt(req.query.threshold) || 10;
   const products = getData('products');
   res.json(products.filter(p => p.quantity < threshold));
+});
+
+// Global error handler
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({ error: 'Internal server error' });
 });
 
 // Dynamic port for Render
