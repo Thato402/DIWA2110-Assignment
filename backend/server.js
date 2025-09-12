@@ -4,7 +4,7 @@ const cors = require('cors');
 console.time('Server startup');
 
 const app = express();
-app.use(cors()); // Allow all origins for debugging
+app.use(cors({ origin: 'https://Thato402.github.io/DIWA2110-Assignment', credentials: true })); // Restrict to frontend origin
 app.use(express.json({ limit: '10mb' })); // Increased limit for base64 images
 
 // In-memory storage for debugging
