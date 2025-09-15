@@ -1,7 +1,7 @@
 {
   "name": "track",
-  "version": "0.1.0",
-  "proxy": "http://localhost:5000",
+  "version": "1.0.1",
+  "proxy": "http://localhost:10000",
   "private": true,
   "homepage": "https://github.com/Thato402/DIWA2110-Assignment.git",
   "dependencies": {
